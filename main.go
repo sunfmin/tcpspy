@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/hex"
 	"flag"
 	"fmt"
 	"net"
@@ -81,13 +80,13 @@ func pass_through(c *Channel) {
 		}
 		if n > 0 {
 			// Если что-то пришло, то логируем и пересылаем на выход.
-			c.logger <- []byte(fmt.Sprintf("Received (#%d, %08X) %d bytes from %s\n",
+			c.logger <- []byte(fmt.Sprintf("\n\n\n==Received (#%d, %08X) %d bytes from %s\n",
 				packet_n, offset, n, from_peer))
 			// Это все, что нужно для преобразования в hex-дамп. Удобно, не так ли?
-			c.logger <- []byte(hex.Dump(b[:n]))
+			c.logger <- []byte(b[:n])
 			c.binary_logger <- b[:n]
 			c.to.Write(b[:n])
-			c.logger <- []byte(fmt.Sprintf("Sent (#%d) to %s\n", packet_n, to_peer))
+			c.logger <- []byte(fmt.Sprintf("\n==Sent (#%d) to %s\n\n\n", packet_n, to_peer))
 			offset += n
 			packet_n += 1
 		}
