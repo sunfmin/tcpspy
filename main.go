@@ -54,6 +54,7 @@ func format_time(t time.Time) string {
 }
 
 func printable_addr(a net.Addr) string {
+	// return a.String()
 	return strings.Replace(a.String(), ":", "-", -1)
 }
 
@@ -63,6 +64,7 @@ type Channel struct {
 	from, to              net.Conn
 	logger, binary_logger chan []byte
 	ack                   chan bool
+	typeName              string
 }
 
 func pass_through(c *Channel) {
@@ -80,8 +82,8 @@ func pass_through(c *Channel) {
 		}
 		if n > 0 {
 			// Если что-то пришло, то логируем и пересылаем на выход.
-			c.logger <- []byte(fmt.Sprintf("\n\n\n==Received (#%d, %08X) %d bytes from %s\n",
-				packet_n, offset, n, from_peer))
+			c.logger <- []byte(fmt.Sprintf("\n\n\n%s: Received (#%d, %08X) %d bytes from %s\n",
+				c.typeName, packet_n, offset, n, from_peer))
 			// Это все, что нужно для преобразования в hex-дамп. Удобно, не так ли?
 			c.logger <- []byte(b[:n])
 			c.binary_logger <- b[:n]
@@ -120,8 +122,8 @@ func process_connection(local net.Conn, conn_n int, target string) {
 	logger <- []byte(fmt.Sprintf("Connected to %s at %s\n", target,
 		format_time(started)))
 
-	go pass_through(&Channel{remote, local, logger, to_logger, ack})
-	go pass_through(&Channel{local, remote, logger, from_logger, ack})
+	go pass_through(&Channel{remote, local, logger, to_logger, ack, "<= Response"})
+	go pass_through(&Channel{local, remote, logger, from_logger, ack, "=> Request"})
 
 	<-ack
 	<-ack
