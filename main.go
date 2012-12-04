@@ -22,23 +22,14 @@ func die(format string, V ...interface{}) {
 }
 
 func connection_logger(data chan []byte, conn_n int, local_info, remote_info string) {
-	log_name := fmt.Sprintf("log-%s-%04d-%s-%s.log", format_time(time.Now()),
-		conn_n, local_info, remote_info)
-	logger_loop(data, log_name)
-}
-
-func binary_logger(data chan []byte, conn_n int, peer string) {
-	log_name := fmt.Sprintf("log-binary-%s-%04d-%s.log", format_time(time.Now()),
-		conn_n, peer)
-	logger_loop(data, log_name)
+	// log_name := fmt.Sprintf("log-%s-%04d-%s-%s.log", format_time(time.Now()),
+	// 	conn_n, local_info, remote_info)
+	logger_loop(data, "")
 }
 
 func logger_loop(data chan []byte, log_name string) {
-	f, err := os.Create(log_name)
-	if err != nil {
-		die("Unable to create file %s, %v\n", log_name, err)
-	}
-	defer f.Close() // Гарантируем закрытие файла в случае падения.
+	f := os.Stdout
+
 	for {
 		b := <-data
 		if len(b) == 0 {
@@ -61,10 +52,10 @@ func printable_addr(a net.Addr) string {
 // Структура, в которой передаются параметры соединения. Объединено, чтобы
 // не таскать много параметров.
 type Channel struct {
-	from, to              net.Conn
-	logger, binary_logger chan []byte
-	ack                   chan bool
-	typeName              string
+	from, to net.Conn
+	logger   chan []byte
+	ack      chan bool
+	typeName string
 }
 
 func pass_through(c *Channel) {
@@ -86,7 +77,6 @@ func pass_through(c *Channel) {
 				c.typeName, packet_n, offset, n, from_peer))
 			// Это все, что нужно для преобразования в hex-дамп. Удобно, не так ли?
 			c.logger <- []byte(b[:n])
-			c.binary_logger <- b[:n]
 			c.to.Write(b[:n])
 			c.logger <- []byte(fmt.Sprintf("\n==Sent (#%d) to %s\n\n\n", packet_n, to_peer))
 			offset += n
@@ -110,20 +100,16 @@ func process_connection(local net.Conn, conn_n int, target string) {
 	started := time.Now()
 
 	logger := make(chan []byte)
-	from_logger := make(chan []byte)
-	to_logger := make(chan []byte)
 
 	ack := make(chan bool)
 
 	go connection_logger(logger, conn_n, local_info, remote_info)
-	go binary_logger(from_logger, conn_n, local_info)
-	go binary_logger(to_logger, conn_n, remote_info)
 
 	logger <- []byte(fmt.Sprintf("Connected to %s at %s\n", target,
 		format_time(started)))
 
-	go pass_through(&Channel{remote, local, logger, to_logger, ack, "<= Response"})
-	go pass_through(&Channel{local, remote, logger, from_logger, ack, "=> Request"})
+	go pass_through(&Channel{remote, local, logger, ack, "<= Response"})
+	go pass_through(&Channel{local, remote, logger, ack, "=> Request"})
 
 	<-ack
 	<-ack
@@ -134,8 +120,6 @@ func process_connection(local net.Conn, conn_n int, target string) {
 		format_time(started), duration.String()))
 
 	logger <- []byte{}
-	from_logger <- []byte{}
-	to_logger <- []byte{}
 }
 
 func main() {
