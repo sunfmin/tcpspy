@@ -128,7 +128,7 @@ func main() {
 	// Разбираем командную строку (несложно, не правда ли?)
 	flag.Parse()
 	if flag.NFlag() != 3 {
-		fmt.Printf("usage: gotcpspy -host target_host -port target_port -listen_post=local_port\n")
+		fmt.Printf("usage: gotcpspy -host target_host -port target_port -listen_port=local_port\n")
 		flag.PrintDefaults()
 		os.Exit(1)
 	}
